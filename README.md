@@ -32,7 +32,7 @@ This game is built using:
 
 1. Clone the repository:
 ```
-git clone https://github.com/Yennyrdz28/Flap-Attack.git
+git clone https://github.com/Polyoxy/Flap-Attack.git
 ```
 
 2. Open the project folder:
@@ -62,7 +62,7 @@ The game offers several customization options:
 ## Credits
 
 - Developed by: Tryniq
-- GitHub: [Yennyrdz28](https://github.com/Yennyrdz28)
+- GitHub: [Polyoxy](https://github.com/Polyoxy)
 - Framework: [Phaser 3](https://phaser.io)
 
 ## License
