@@ -1,33 +1,30 @@
-# Node.js
-node_modules/
-npm-debug.log
-yarn-error.log
-yarn.lock
-package-lock.json
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# IDEs and editors
+# IDE/Editor folders
 .idea/
 .vscode/
 *.sublime-*
-.DS_Store
 
-# Build and distribution
-dist/
-build/
-*.min.js
-
-# Logs
-logs/
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 *.log
 
-# Environment variables
+# Local environment files
 .env
 .env.local
-.env.development
-.env.test
-.env.production
 
-# Miscellaneous
+# Dependency directories
+node_modules/
+
+# Distribution files
+dist/
+build/
+
+# Temporary files
 .tmp/
-Thumbs.db
 .cache/ 
