@@ -1,0 +1,33 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+
+# IDEs and editors
+.idea/
+.vscode/
+*.sublime-*
+.DS_Store
+
+# Build and distribution
+dist/
+build/
+*.min.js
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Miscellaneous
+.tmp/
+Thumbs.db
+.cache/ 

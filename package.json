@@ -1,0 +1,12 @@
+{
+  "name": "flappy-bird",
+  "version": "1.0.0",
+  "description": "A Flappy Bird clone using Phaser.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+} 
