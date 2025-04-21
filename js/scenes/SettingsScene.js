@@ -1,116 +1,175 @@
 class SettingsScene extends Phaser.Scene {
     constructor() {
         super({ key: 'SettingsScene' });
-        this.difficultyOptions = ['EASY', 'NORMAL', 'HARD'];
-        this.currentDifficulty = parseInt(localStorage.getItem('difficulty') || '1');
-        this.isDropdownOpen = false;
         
-        // Initialize volume (default: 50%)
+        // Initialize settings with values from localStorage or defaults
+        this.difficultyOptions = ['Easy', 'Normal', 'Hard'];
+        this.currentDifficulty = localStorage.getItem('difficulty') || 'Normal';
         this.musicVolume = parseFloat(localStorage.getItem('musicVolume') || '0.5');
+        this.music = null;
         
-        // Check if this is the first time loading the game
-        // If it is, set music ON by default
-        if (localStorage.getItem('music') === null) {
-            localStorage.setItem('music', '0'); // 0 = ON, 1 = OFF
-        }
+        // Reference to the dropdown component
+        this.dropdownOptions = null;
+        this.isDropdownOpen = false;
     }
 
     preload() {
-        this.load.image('settingsBackground', 'assets/MenuImage1.png');
-        this.load.audio('gameMusic', 'assets/IttyBitty.mp3');
-        this.load.image('sliderBar', 'assets/sliderBar.png');
-        this.load.image('sliderKnob', 'assets/sliderKnob.png');
+        // Load background image
+        this.load.image('menuBackground', 'assets/MenuImage1.png');
         
-        // Create placeholder assets if they don't exist
-        this.createPlaceholderAssets();
-    }
-    
-    createPlaceholderAssets() {
-        // Check if slider assets exist and create them if not
-        const sliderBarKey = 'sliderBar';
-        const sliderKnobKey = 'sliderKnob';
-        
-        if (!this.textures.exists(sliderBarKey)) {
-            const barGraphics = this.make.graphics({x: 0, y: 0, add: false});
-            barGraphics.fillStyle(0x000000, 0.5);
-            barGraphics.fillRect(0, 0, 200, 10);
-            barGraphics.lineStyle(2, 0x3CEFFF, 1);
-            barGraphics.strokeRect(0, 0, 200, 10);
-            barGraphics.generateTexture(sliderBarKey, 200, 10);
-        }
-        
-        if (!this.textures.exists(sliderKnobKey)) {
-            const knobGraphics = this.make.graphics({x: 0, y: 0, add: false});
-            knobGraphics.fillStyle(0x3CEFFF, 1);
-            knobGraphics.fillRect(0, 0, 15, 20);
-            knobGraphics.lineStyle(2, 0xFFFFFF, 0.8);
-            knobGraphics.strokeRect(0, 0, 15, 20);
-            knobGraphics.generateTexture(sliderKnobKey, 15, 20);
-        }
+        // No longer loading these files as they don't exist
+        // this.load.image('largeButton', 'assets/button-large.png');
+        // this.load.image('smallButton', 'assets/button-small.png');
+        // this.load.audio('testSound', 'assets/pop.mp3');
     }
 
     create() {
         const gameWidth = this.cameras.main.width;
         const gameHeight = this.cameras.main.height;
-
-        // Background
-        const bg = this.add.image(gameWidth/2, gameHeight/2, 'settingsBackground');
-        const scale = Math.max(gameWidth / bg.width, gameHeight / bg.height);
-        bg.setScale(scale);
-
-        // Initialize game music if it doesn't exist
-        if (!this.sys.game.globals) {
-            this.sys.game.globals = {};
+        
+        // Create background using the image
+        const background = this.add.image(gameWidth/2, gameHeight/2, 'menuBackground');
+        
+        // Scale the background to cover the screen
+        const scaleX = gameWidth / background.width;
+        const scaleY = gameHeight / background.height;
+        const scale = Math.max(scaleX, scaleY);
+        background.setScale(scale);
+        
+        // Get reference to the game music from the global storage
+        if (this.sys.game.globals && this.sys.game.globals.music) {
+            this.music = this.sys.game.globals.music;
         }
         
-        if (!this.sys.game.globals.music) {
-            this.sys.game.globals.music = this.sound.add('gameMusic', {
-                loop: true,
-                volume: this.musicVolume
-            });
-        }
-        
-        // Reference to the music
-        this.music = this.sys.game.globals.music;
-        
-        // Set volume based on saved preference
-        this.music.volume = this.musicVolume;
-        
-        // Always play music if it should be on (based on settings)
-        const musicSetting = localStorage.getItem('music');
-        if (musicSetting === '0' && !this.music.isPlaying) {
-            this.music.play();
-        } else if (musicSetting === '1' && this.music.isPlaying) {
-            this.music.stop();
-        }
-
-        // TITLE - Top center
-        this.add.text(gameWidth/2, gameHeight * 0.15, 'SETTINGS', {
-            fontSize: '42px',
+        // TITLE
+        const title = this.add.text(gameWidth/2, 60, 'SETTINGS', {
+            fontSize: '48px',
             fill: '#FFFFFF',
             stroke: '#000000',
             strokeThickness: 8,
             fontFamily: '"Jersey 10", sans-serif'
         }).setOrigin(0.5);
 
-        // BACK BUTTON - Top left with shadow effect
-        const backButton = this.add.text(40, 40, '< BACK', {
-            fontSize: '26px',
+        // Add a subtle animation to the title
+        this.tweens.add({
+            targets: title,
+            scale: { from: 1, to: 1.05 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        // BACK BUTTON
+        const backButton = this.add.text(80, 60, '< BACK', {
+            fontSize: '32px',
+            fill: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 5,
+            fontFamily: '"Jersey 10", sans-serif'
+        }).setOrigin(0.5);
+        
+        backButton.setInteractive({ useHandCursor: true })
+            .on('pointerover', () => {
+                backButton.setScale(1.1);
+                backButton.setFill('#3CEFFF');
+            })
+            .on('pointerout', () => {
+                backButton.setScale(1);
+                backButton.setFill('#FFFFFF');
+            })
+            .on('pointerdown', () => {
+                // Return to the home scene
+                this.scene.start('HomeScene');
+            });
+            
+        // SETTINGS CONTENT CONTAINER
+        const settingsContainer = this.add.container(gameWidth/2, 150);
+        settingsContainer.setSize(gameWidth - 100, gameHeight - 200);
+        
+        // Create a background for the settings area
+        const settingsBg = this.add.graphics();
+        settingsBg.fillStyle(0x000000, 0.3);
+        settingsBg.fillRoundedRect(-settingsContainer.width/2, 0, settingsContainer.width, settingsContainer.height, 16);
+        settingsBg.lineStyle(2, 0x3CEFFF, 0.3);
+        settingsBg.strokeRoundedRect(-settingsContainer.width/2, 0, settingsContainer.width, settingsContainer.height, 16);
+        settingsContainer.add(settingsBg);
+
+        // SETTINGS CONTENT
+        const settingsStartY = 35;
+        const sectionSpacing = 100; // Consistent spacing between sections
+        
+        // DIFFICULTY SETTINGS
+        this.add.text(80, settingsStartY, 'DIFFICULTY:', {
+            fontSize: '28px',
             fill: '#FFFFFF',
             stroke: '#000000',
             strokeThickness: 5,
             fontFamily: '"Jersey 10", sans-serif'
         }).setOrigin(0, 0.5);
         
-        backButton.setInteractive()
-            .on('pointerover', () => backButton.setFill('#3CEFFF'))
-            .on('pointerout', () => backButton.setFill('#FFFFFF'))
+        // Improved dropdown for difficulty selection
+        const dropdownWidth = 200;
+        const dropdownHeight = 40;
+        const dropdownX = 280;
+        const dropdownY = settingsStartY;
+        
+        // Create dropdown box with background
+        const dropdownBg = this.add.graphics();
+        dropdownBg.fillStyle(0x222222, 0.8);
+        dropdownBg.fillRoundedRect(dropdownX, dropdownY - dropdownHeight/2, dropdownWidth, dropdownHeight, 8);
+        dropdownBg.lineStyle(2, 0x3CEFFF, 0.5);
+        dropdownBg.strokeRoundedRect(dropdownX, dropdownY - dropdownHeight/2, dropdownWidth, dropdownHeight, 8);
+        
+        // Create dropdown text
+        const dropdownText = this.add.text(dropdownX + 15, dropdownY, this.currentDifficulty, {
+            fontSize: '24px',
+            fill: '#FFFFFF',
+            fontFamily: '"Jersey 10", sans-serif'
+        }).setOrigin(0, 0.5);
+        
+        // Create dropdown arrow
+        const arrowX = dropdownX + dropdownWidth - 25;
+        const arrowY = dropdownY;
+        const dropdownArrow = this.add.text(arrowX, arrowY, '▼', {
+            fontSize: '16px',
+            fill: '#3CEFFF'
+        }).setOrigin(0.5);
+        
+        // Make the dropdown interactive
+        const dropdownHitArea = this.add.zone(dropdownX + dropdownWidth/2, dropdownY, dropdownWidth, dropdownHeight)
+            .setOrigin(0.5, 0.5)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerover', () => {
+                dropdownBg.clear();
+                dropdownBg.fillStyle(0x333333, 0.8);
+                dropdownBg.fillRoundedRect(dropdownX, dropdownY - dropdownHeight/2, dropdownWidth, dropdownHeight, 8);
+                dropdownBg.lineStyle(2, 0x3CEFFF, 0.8);
+                dropdownBg.strokeRoundedRect(dropdownX, dropdownY - dropdownHeight/2, dropdownWidth, dropdownHeight, 8);
+                dropdownArrow.setFill('#FFFFFF');
+            })
+            .on('pointerout', () => {
+                dropdownBg.clear();
+                dropdownBg.fillStyle(0x222222, 0.8);
+                dropdownBg.fillRoundedRect(dropdownX, dropdownY - dropdownHeight/2, dropdownWidth, dropdownHeight, 8);
+                dropdownBg.lineStyle(2, 0x3CEFFF, 0.5);
+                dropdownBg.strokeRoundedRect(dropdownX, dropdownY - dropdownHeight/2, dropdownWidth, dropdownHeight, 8);
+                dropdownArrow.setFill('#3CEFFF');
+            })
             .on('pointerdown', () => {
-                this.scene.start('HomeScene');
+                this.toggleDropdown(dropdownX, dropdownY + dropdownHeight/2, dropdownWidth, dropdownHeight, dropdownText);
             });
+            
+        // Section divider
+        const divider1 = this.add.graphics();
+        divider1.lineStyle(2, 0x3CEFFF, 0.3);
+        divider1.lineTo(settingsContainer.width - 80, 0);
+        divider1.x = 40;
+        divider1.y = settingsStartY + 50;
+        settingsContainer.add(divider1);
 
-        // SOUND SETTINGS - Mid screen
-        const soundY = gameHeight * 0.3;
+        // SOUND SETTINGS
+        const soundY = settingsStartY + sectionSpacing;
         this.add.text(80, soundY, 'SOUND:', {
             fontSize: '28px',
             fill: '#FFFFFF',
@@ -121,7 +180,7 @@ class SettingsScene extends Phaser.Scene {
 
         const soundOnText = this.add.text(220, soundY, 'ON', {
             fontSize: '28px',
-            fill: localStorage.getItem('sound') === '0' ? '#3CEFFF' : '#888888',
+            fill: localStorage.getItem('sound') === '0' || localStorage.getItem('sound') === null ? '#3CEFFF' : '#888888',
             stroke: '#000000',
             strokeThickness: 5,
             fontFamily: '"Jersey 10", sans-serif'
@@ -135,24 +194,37 @@ class SettingsScene extends Phaser.Scene {
             fontFamily: '"Jersey 10", sans-serif'
         }).setOrigin(0.5);
 
-        soundOnText.setInteractive()
+        soundOnText.setInteractive({ useHandCursor: true })
             .on('pointerover', () => {
-                if (localStorage.getItem('sound') !== '0') {
+                if (localStorage.getItem('sound') !== '0' && localStorage.getItem('sound') !== null) {
                     soundOnText.setFill('#FFFFFF');
                 }
             })
             .on('pointerout', () => {
-                if (localStorage.getItem('sound') !== '0') {
+                if (localStorage.getItem('sound') !== '0' && localStorage.getItem('sound') !== null) {
                     soundOnText.setFill('#888888');
                 }
             })
             .on('pointerdown', () => {
+                // Resume audio context on interaction
+                this.resumeAudioContext();
+                
                 soundOnText.setFill('#3CEFFF');
                 soundOffText.setFill('#888888');
                 localStorage.setItem('sound', '0');
+                
+                // Use existing game music instead of test sound
+                if (this.music) {
+                    // Just set volume temporarily to indicate sound works
+                    const originalVolume = this.music.volume;
+                    this.music.setVolume(0.2);
+                    this.time.delayedCall(300, () => {
+                        this.music.setVolume(originalVolume);
+                    });
+                }
             });
 
-        soundOffText.setInteractive()
+        soundOffText.setInteractive({ useHandCursor: true })
             .on('pointerover', () => {
                 if (localStorage.getItem('sound') !== '1') {
                     soundOffText.setFill('#FFFFFF');
@@ -164,21 +236,24 @@ class SettingsScene extends Phaser.Scene {
                 }
             })
             .on('pointerdown', () => {
+                // Resume audio context on interaction
+                this.resumeAudioContext();
+                
                 soundOnText.setFill('#888888');
                 soundOffText.setFill('#3CEFFF');
                 localStorage.setItem('sound', '1');
             });
 
-        // Line divider with pixel art styling
-        const divider1 = this.add.graphics();
-        divider1.lineStyle(1, '#3CEFFF', 0.4);
-        divider1.beginPath();
-        divider1.moveTo(40, soundY + 40);
-        divider1.lineTo(gameWidth - 40, soundY + 40);
-        divider1.strokePath();
+        // Section divider
+        const divider2 = this.add.graphics();
+        divider2.lineStyle(2, 0x3CEFFF, 0.3);
+        divider2.lineTo(settingsContainer.width - 80, 0);
+        divider2.x = 40;
+        divider2.y = soundY + 50;
+        settingsContainer.add(divider2);
 
         // MUSIC SETTINGS
-        const musicY = soundY + 75;
+        const musicY = soundY + sectionSpacing;
         this.add.text(80, musicY, 'MUSIC:', {
             fontSize: '28px',
             fill: '#FFFFFF',
@@ -189,7 +264,7 @@ class SettingsScene extends Phaser.Scene {
 
         const musicOnText = this.add.text(220, musicY, 'ON', {
             fontSize: '28px',
-            fill: localStorage.getItem('music') === '0' ? '#3CEFFF' : '#888888',
+            fill: localStorage.getItem('music') === '0' || localStorage.getItem('music') === null ? '#3CEFFF' : '#888888',
             stroke: '#000000',
             strokeThickness: 5,
             fontFamily: '"Jersey 10", sans-serif'
@@ -203,29 +278,32 @@ class SettingsScene extends Phaser.Scene {
             fontFamily: '"Jersey 10", sans-serif'
         }).setOrigin(0.5);
 
-        musicOnText.setInteractive()
+        musicOnText.setInteractive({ useHandCursor: true })
             .on('pointerover', () => {
-                if (localStorage.getItem('music') !== '0') {
+                if (localStorage.getItem('music') !== '0' && localStorage.getItem('music') !== null) {
                     musicOnText.setFill('#FFFFFF');
                 }
             })
             .on('pointerout', () => {
-                if (localStorage.getItem('music') !== '0') {
+                if (localStorage.getItem('music') !== '0' && localStorage.getItem('music') !== null) {
                     musicOnText.setFill('#888888');
                 }
             })
             .on('pointerdown', () => {
+                // Resume audio context on interaction
+                this.resumeAudioContext();
+                
                 musicOnText.setFill('#3CEFFF');
                 musicOffText.setFill('#888888');
                 localStorage.setItem('music', '0');
                 
-                // Play music when ON is selected
-                if (!this.music.isPlaying) {
+                // Play music if it's not already playing
+                if (this.music && !this.music.isPlaying) {
                     this.music.play();
                 }
             });
 
-        musicOffText.setInteractive()
+        musicOffText.setInteractive({ useHandCursor: true })
             .on('pointerover', () => {
                 if (localStorage.getItem('music') !== '1') {
                     musicOffText.setFill('#FFFFFF');
@@ -237,18 +315,21 @@ class SettingsScene extends Phaser.Scene {
                 }
             })
             .on('pointerdown', () => {
+                // Resume audio context on interaction
+                this.resumeAudioContext();
+                
                 musicOnText.setFill('#888888');
                 musicOffText.setFill('#3CEFFF');
                 localStorage.setItem('music', '1');
                 
-                // Stop music when OFF is selected
-                if (this.music.isPlaying) {
+                // Stop music if it's currently playing
+                if (this.music && this.music.isPlaying) {
                     this.music.stop();
                 }
             });
 
         // VOLUME SLIDER
-        const volumeY = musicY + 50;
+        const volumeY = musicY + 60;
         this.add.text(80, volumeY, 'VOLUME:', {
             fontSize: '28px',
             fill: '#FFFFFF',
@@ -257,39 +338,39 @@ class SettingsScene extends Phaser.Scene {
             fontFamily: '"Jersey 10", sans-serif'
         }).setOrigin(0, 0.5);
         
-        // Create custom slider bar that matches the screenshot
+        // Create custom slider bar that looks more professional
         const sliderWidth = 200;
         const sliderHeight = 10;
         const sliderX = 220;
         
         // Background bar
         const sliderBackground = this.add.graphics();
-        sliderBackground.fillStyle(0x555555, 0.3);
-        sliderBackground.fillRect(sliderX, volumeY - sliderHeight/2, sliderWidth, sliderHeight);
-        sliderBackground.lineStyle(1, 0x3CEFFF, 0.2);
-        sliderBackground.strokeRect(sliderX, volumeY - sliderHeight/2, sliderWidth, sliderHeight);
+        sliderBackground.fillStyle(0x333333, 0.5);
+        sliderBackground.fillRoundedRect(sliderX, volumeY - sliderHeight/2, sliderWidth, sliderHeight, 5);
+        sliderBackground.lineStyle(1, 0x3CEFFF, 0.3);
+        sliderBackground.strokeRoundedRect(sliderX, volumeY - sliderHeight/2, sliderWidth, sliderHeight, 5);
         
         // Filled portion based on current volume
         const filledWidth = sliderWidth * this.musicVolume;
         const filledBar = this.add.graphics();
-        filledBar.fillStyle(0x3CEFFF, 0.5);
-        filledBar.fillRect(sliderX, volumeY - sliderHeight/2, filledWidth, sliderHeight);
+        filledBar.fillStyle(0x3CEFFF, 0.7);
+        filledBar.fillRoundedRect(sliderX, volumeY - sliderHeight/2, filledWidth, sliderHeight, 5);
         
-        // Slider knob - custom made to match the screenshot
-        const knobWidth = 12;
-        const knobHeight = 20;
-        const knobX = sliderX + filledWidth;
+        // Slider knob - improved design
+        const knobWidth = 16;
+        const knobHeight = 24;
+        let knobX = sliderX + filledWidth;
         
         const sliderKnob = this.add.graphics();
         sliderKnob.fillStyle(0x3CEFFF, 1);
-        sliderKnob.fillRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+        sliderKnob.fillRoundedRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
         sliderKnob.lineStyle(2, 0xFFFFFF, 0.8);
-        sliderKnob.strokeRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+        sliderKnob.strokeRoundedRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
         
         // Create interactive zone for the entire slider
-        const sliderZone = this.add.zone(sliderX + sliderWidth/2, volumeY, sliderWidth + knobWidth, knobHeight)
+        const sliderZone = this.add.zone(sliderX + sliderWidth/2, volumeY, sliderWidth + knobWidth, knobHeight + 10)
             .setOrigin(0.5, 0.5)
-            .setInteractive();
+            .setInteractive({ useHandCursor: true });
             
         // Make the entire slider clickable for easier interaction
         sliderZone.on('pointerdown', (pointer) => {
@@ -299,7 +380,9 @@ class SettingsScene extends Phaser.Scene {
             
             // Update volume
             this.musicVolume = newVolume;
-            this.music.volume = newVolume;
+            if (this.music) {
+                this.music.volume = newVolume;
+            }
             localStorage.setItem('musicVolume', newVolume.toString());
             
             // Update visuals
@@ -310,25 +393,25 @@ class SettingsScene extends Phaser.Scene {
         let isDragging = false;
         
         // Create an invisible interactive area around the knob
-        const knobZone = this.add.zone(knobX, volumeY, knobWidth + 10, knobHeight + 10)
+        const knobZone = this.add.zone(knobX, volumeY, knobWidth + 20, knobHeight + 10)
             .setOrigin(0.5, 0.5)
-            .setInteractive({ draggable: true });
+            .setInteractive({ useHandCursor: true, draggable: true });
             
         knobZone.on('pointerover', () => {
             sliderKnob.clear();
             sliderKnob.fillStyle(0x60FFFF, 1); // Brighter color on hover
-            sliderKnob.fillRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+            sliderKnob.fillRoundedRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
             sliderKnob.lineStyle(2, 0xFFFFFF, 1);
-            sliderKnob.strokeRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+            sliderKnob.strokeRoundedRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
         });
         
         knobZone.on('pointerout', () => {
             if (!isDragging) {
                 sliderKnob.clear();
                 sliderKnob.fillStyle(0x3CEFFF, 1);
-                sliderKnob.fillRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+                sliderKnob.fillRoundedRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
                 sliderKnob.lineStyle(2, 0xFFFFFF, 0.8);
-                sliderKnob.strokeRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+                sliderKnob.strokeRoundedRect(knobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
             }
         });
         
@@ -345,7 +428,9 @@ class SettingsScene extends Phaser.Scene {
             this.musicVolume = newVolume;
             
             // Update volume
-            this.music.volume = newVolume;
+            if (this.music) {
+                this.music.volume = newVolume;
+            }
             localStorage.setItem('musicVolume', newVolume.toString());
             
             // Update visuals
@@ -366,208 +451,160 @@ class SettingsScene extends Phaser.Scene {
             knobZone.x = newKnobX;
             
             // Clear and redraw slider components
-            filledBar.clear();
-            filledBar.fillStyle(0x3CEFFF, 0.5);
-            filledBar.fillRect(sliderX, volumeY - sliderHeight/2, sliderWidth * volume, sliderHeight);
-            
             sliderKnob.clear();
             sliderKnob.fillStyle(isDragging ? 0x60FFFF : 0x3CEFFF, 1);
-            sliderKnob.fillRect(newKnobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+            sliderKnob.fillRoundedRect(newKnobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
             sliderKnob.lineStyle(2, 0xFFFFFF, isDragging ? 1 : 0.8);
-            sliderKnob.strokeRect(newKnobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight);
+            sliderKnob.strokeRoundedRect(newKnobX - knobWidth/2, volumeY - knobHeight/2, knobWidth, knobHeight, 6);
+            
+            // Update filled bar
+            filledBar.clear();
+            filledBar.fillStyle(0x3CEFFF, 0.7);
+            filledBar.fillRoundedRect(sliderX, volumeY - sliderHeight/2, newKnobX - sliderX, sliderHeight, 5);
         };
-
-        // Line divider
-        const divider2 = this.add.graphics();
-        divider2.lineStyle(1, '#3CEFFF', 0.4);
-        divider2.beginPath();
-        divider2.moveTo(40, volumeY + 40);
-        divider2.lineTo(gameWidth - 40, volumeY + 40);
-        divider2.strokePath();
-
-        // DIFFICULTY SETTINGS
-        const difficultyY = volumeY + 75;
-        this.add.text(80, difficultyY, 'DIFFICULTY:', {
-            fontSize: '28px',
-            fill: '#FFFFFF',
-            stroke: '#000000',
-            strokeThickness: 5,
-            fontFamily: '"Jersey 10", sans-serif'
-        }).setOrigin(0, 0.5);
-
-        // Create dropdown box with improved pixel art style
-        const dropdownWidth = 160;
-        const dropdownHeight = 42;
-        const dropdownX = 280;
         
-        // Dropdown box - simplified and more modern
-        const dropdownBg = this.add.graphics();
-        dropdownBg.fillStyle(0x000000, 0.2);
-        dropdownBg.fillRect(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2, dropdownWidth, dropdownHeight);
-        dropdownBg.lineStyle(2, '#3CEFFF', 1);
-        dropdownBg.strokeRect(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2, dropdownWidth, dropdownHeight);
-
-        // Add subtle highlight to top and left edges for pixel art effect
-        const dropdownHighlight = this.add.graphics();
-        dropdownHighlight.lineStyle(1, '#FFFFFF', 0.3);
-        dropdownHighlight.beginPath();
-        dropdownHighlight.moveTo(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2);
-        dropdownHighlight.lineTo(dropdownX + dropdownWidth/2, difficultyY - dropdownHeight/2);
-        dropdownHighlight.moveTo(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2);
-        dropdownHighlight.lineTo(dropdownX - dropdownWidth/2, difficultyY + dropdownHeight/2);
-        dropdownHighlight.strokePath();
-
-        // Dropdown text with better placement
-        const dropdownText = this.add.text(dropdownX - dropdownWidth/2 + 15, difficultyY, this.difficultyOptions[this.currentDifficulty], {
-            fontSize: '28px',
-            fill: '#3CEFFF',
-            stroke: '#000000',
-            strokeThickness: 5,
+        // Add volume percentage display
+        const volumePercentText = this.add.text(sliderX + sliderWidth + 20, volumeY, `${Math.round(this.musicVolume * 100)}%`, {
+            fontSize: '24px',
+            fill: '#FFFFFF',
             fontFamily: '"Jersey 10", sans-serif'
         }).setOrigin(0, 0.5);
+        
+        // Update the percentage text when the volume changes
+        this.events.on('volume-changed', (volume) => {
+            volumePercentText.setText(`${Math.round(volume * 100)}%`);
+        });
+    }
 
-        // Dropdown arrow with sharper pixel style
-        const dropdownArrow = this.add.text(dropdownX + dropdownWidth/2 - 20, difficultyY, '▼', {
-            fontSize: '18px',
-            fill: '#3CEFFF',
-            stroke: '#000000',
-            strokeThickness: 3,
-            fontFamily: '"Jersey 10", sans-serif'
-        }).setOrigin(0.5);
-
-        // Make dropdown interactive with hover effects
-        const dropdownArea = this.add.zone(dropdownX, difficultyY, dropdownWidth, dropdownHeight)
-            .setOrigin(0.5)
-            .setInteractive()
-            .on('pointerover', () => {
-                dropdownBg.clear();
-                dropdownBg.fillStyle(0x000000, 0.3);
-                dropdownBg.fillRect(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2, dropdownWidth, dropdownHeight);
-                dropdownBg.lineStyle(2, '#3CEFFF', 1);
-                dropdownBg.strokeRect(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2, dropdownWidth, dropdownHeight);
-                dropdownArrow.setFill('#FFFFFF');
-            })
-            .on('pointerout', () => {
-                dropdownBg.clear();
-                dropdownBg.fillStyle(0x000000, 0.2);
-                dropdownBg.fillRect(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2, dropdownWidth, dropdownHeight);
-                dropdownBg.lineStyle(2, '#3CEFFF', 1);
-                dropdownBg.strokeRect(dropdownX - dropdownWidth/2, difficultyY - dropdownHeight/2, dropdownWidth, dropdownHeight);
-                dropdownArrow.setFill('#3CEFFF');
-            })
-            .on('pointerdown', () => {
-                if (!this.isDropdownOpen) {
-                    this.showDropdownOptions(dropdownX, difficultyY, dropdownWidth, dropdownHeight, dropdownText);
-                }
-            });
-
-        // Version text
-        this.add.text(gameWidth/2, gameHeight - 20, 'v1.0.0', {
-            fontSize: '16px',
-            fill: '#888888',
-            fontFamily: '"Jersey 10", sans-serif'
-        }).setOrigin(0.5);
+    toggleDropdown(x, y, width, height, dropdownText) {
+        // If dropdown is already open, close it
+        if (this.isDropdownOpen) {
+            if (this.dropdownOptions) {
+                this.dropdownOptions.destroy();
+                this.dropdownOptions = null;
+            }
+            this.isDropdownOpen = false;
+            return;
+        }
+        
+        this.isDropdownOpen = true;
+        this.showDropdownOptions(x, y, width, height, dropdownText);
     }
 
     showDropdownOptions(x, y, width, height, dropdownText) {
-        this.isDropdownOpen = true;
+        // Create a container for the dropdown options
+        this.dropdownOptions = this.add.container(0, 0);
         
-        // Create container for options
-        const optionsContainer = this.add.container(0, 0);
+        // Calculate dimensions
+        const numOptions = this.difficultyOptions.length;
+        const optionHeight = height;
+        const totalHeight = numOptions * optionHeight;
         
-        // Add each option with improved styling
+        // Background for options
+        const optionsBg = this.add.graphics();
+        optionsBg.fillStyle(0x222222, 0.9);
+        optionsBg.fillRoundedRect(x, y, width, totalHeight, 8);
+        optionsBg.lineStyle(2, 0x3CEFFF, 0.5);
+        optionsBg.strokeRoundedRect(x, y, width, totalHeight, 8);
+        this.dropdownOptions.add(optionsBg);
+        
+        // Add the options
         this.difficultyOptions.forEach((option, index) => {
-            const optionY = y + (index + 1) * height;
+            const isSelected = option === this.currentDifficulty;
+            const yPos = y + (index * optionHeight) + optionHeight/2;
             
-            // Option background - simplified design
+            // Option background on hover
             const optionBg = this.add.graphics();
-            optionBg.fillStyle(0x000000, 0.2);
-            optionBg.fillRect(x - width/2, optionY - height/2, width, height);
             
-            if (index === this.currentDifficulty) {
-                optionBg.lineStyle(2, '#3CEFFF', 1);
-                optionBg.strokeRect(x - width/2, optionY - height/2, width, height);
-            }
-            
-            // Add subtle highlight to selected option
-            if (index === this.currentDifficulty) {
-                const optionHighlight = this.add.graphics();
-                optionHighlight.lineStyle(1, '#FFFFFF', 0.3);
-                optionHighlight.beginPath();
-                optionHighlight.moveTo(x - width/2, optionY - height/2);
-                optionHighlight.lineTo(x + width/2, optionY - height/2);
-                optionHighlight.moveTo(x - width/2, optionY - height/2);
-                optionHighlight.lineTo(x - width/2, optionY + height/2);
-                optionHighlight.strokePath();
-                optionsContainer.add(optionHighlight);
-            }
-            
-            // Option text with enhanced styling
-            const optionText = this.add.text(x - width/2 + 15, optionY, option, {
-                fontSize: '28px',
-                fill: index === this.currentDifficulty ? '#3CEFFF' : '#888888',
-                stroke: '#000000',
-                strokeThickness: 5,
+            // Option text with appropriate styling
+            const optionText = this.add.text(x + 15, yPos, option, {
+                fontSize: '24px',
+                fill: isSelected ? '#3CEFFF' : '#FFFFFF',
                 fontFamily: '"Jersey 10", sans-serif'
             }).setOrigin(0, 0.5);
             
-            // Make option interactive with enhanced effects
-            const optionZone = this.add.zone(x, optionY, width, height)
-                .setOrigin(0.5)
-                .setInteractive()
+            // Add checkmark for selected option
+            let checkmark = null;
+            if (isSelected) {
+                checkmark = this.add.text(x + width - 30, yPos, '✓', {
+                    fontSize: '24px',
+                    fill: '#3CEFFF',
+                    fontFamily: '"Jersey 10", sans-serif'
+                }).setOrigin(0, 0.5);
+                this.dropdownOptions.add(checkmark);
+            }
+            
+            // Add interaction zone
+            const optionZone = this.add.zone(x + width/2, yPos, width, optionHeight)
+                .setOrigin(0.5, 0.5)
+                .setInteractive({ useHandCursor: true })
                 .on('pointerover', () => {
                     optionBg.clear();
-                    optionBg.fillStyle(0x000000, 0.3);
-                    optionBg.fillRect(x - width/2, optionY - height/2, width, height);
-                    
-                    if (index === this.currentDifficulty) {
-                        optionBg.lineStyle(2, '#3CEFFF', 1);
-                        optionBg.strokeRect(x - width/2, optionY - height/2, width, height);
-                    } else {
-                        optionBg.lineStyle(2, '#3CEFFF', 0.7);
-                        optionBg.strokeRect(x - width/2, optionY - height/2, width, height);
-                        optionText.setFill('#FFFFFF');
-                    }
+                    optionBg.fillStyle(0x3CEFFF, 0.2);
+                    optionBg.fillRect(x, yPos - optionHeight/2, width, optionHeight);
+                    optionText.setFill(isSelected ? '#3CEFFF' : '#FFFFFF');
                 })
                 .on('pointerout', () => {
                     optionBg.clear();
-                    optionBg.fillStyle(0x000000, 0.2);
-                    optionBg.fillRect(x - width/2, optionY - height/2, width, height);
-                    
-                    if (index === this.currentDifficulty) {
-                        optionBg.lineStyle(2, '#3CEFFF', 1);
-                        optionBg.strokeRect(x - width/2, optionY - height/2, width, height);
-                    } else {
-                        optionText.setFill('#888888');
-                    }
+                    optionText.setFill(isSelected ? '#3CEFFF' : '#FFFFFF');
                 })
                 .on('pointerdown', () => {
-                    this.currentDifficulty = index;
-                    dropdownText.setText(option);
-                    localStorage.setItem('difficulty', index.toString());
-                    optionsContainer.destroy();
-                    this.isDropdownOpen = false;
+                    // Update difficulty setting
+                    this.selectDifficulty(index, dropdownText);
                 });
-            
-            optionsContainer.add([optionBg, optionText, optionZone]);
+                
+            this.dropdownOptions.add(optionBg);
+            this.dropdownOptions.add(optionText);
+            this.dropdownOptions.add(optionZone);
         });
         
-        // Close dropdown when clicking outside
-        this.input.once('pointerdown', (pointer) => {
-            const bounds = new Phaser.Geom.Rectangle(
-                x - width/2,
-                y - height/2,
-                width,
-                height * (this.difficultyOptions.length + 1)
-            );
-            
-            if (!Phaser.Geom.Rectangle.Contains(bounds, pointer.x, pointer.y)) {
-                optionsContainer.destroy();
-                this.isDropdownOpen = false;
+        // Add global click listener to close dropdown when clicking outside
+        const closeDropdownListener = () => {
+            if (this.isDropdownOpen) {
+                this.toggleDropdown(x, y, width, height, dropdownText);
+                this.input.off('pointerdown', closeDropdownListener);
             }
-        });
+        };
         
-        // Add container to scene
-        this.add.existing(optionsContainer);
+        // Add small delay before enabling the global click listener
+        this.time.delayedCall(200, () => {
+            this.input.on('pointerdown', closeDropdownListener);
+        });
+    }
+    
+    selectDifficulty(index, headerText) {
+        // Update current difficulty
+        this.currentDifficulty = this.difficultyOptions[index];
+        
+        // Update dropdown header text
+        headerText.setText(this.currentDifficulty);
+        
+        // Save setting to localStorage
+        localStorage.setItem('difficulty', this.currentDifficulty);
+        
+        // Close the dropdown
+        if (this.dropdownOptions) {
+            this.dropdownOptions.destroy();
+            this.dropdownOptions = null;
+        }
+        this.isDropdownOpen = false;
+        
+        // Update game settings if needed
+        const settings = {
+            difficulty: this.currentDifficulty,
+            sound: localStorage.getItem('sound') || '0',
+            music: localStorage.getItem('music') || '0',
+            musicVolume: this.musicVolume
+        };
+        
+        // Emit settings updated event
+        this.game.events.emit('settingsUpdated', settings);
+    }
+    
+    resumeAudioContext() {
+        // Resume the audio context if it's suspended
+        if (this.sound.context.state === 'suspended') {
+            this.sound.context.resume();
+        }
     }
 } 

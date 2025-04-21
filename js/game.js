@@ -1,3 +1,6 @@
+// Scene classes are loaded in the HTML before this script
+// No imports needed as they're available in the global scope
+
 const config = {
     type: Phaser.AUTO,
     parent: 'game',
@@ -29,7 +32,7 @@ const config = {
             }
         }
     },
-    scene: [HomeScene, LoadingScene, GameScene, BootScene, SettingsScene, PauseScene]
+    scene: [SplashScene, HomeScene, LoadingScene, GameScene, BootScene, SettingsScene, PauseScene]
 };
 
 const game = new Phaser.Game(config); 
