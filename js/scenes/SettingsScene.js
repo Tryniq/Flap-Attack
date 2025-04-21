@@ -1,248 +1,281 @@
 class SettingsScene extends Phaser.Scene {
     constructor() {
         super({ key: 'SettingsScene' });
+        this.difficultyOptions = ['EASY', 'NORMAL', 'HARD'];
+        this.currentDifficulty = 1; // Default to NORMAL
+        this.isDropdownOpen = false;
+    }
+
+    preload() {
+        // Load background image
+        this.load.image('settingsBackground', 'assets/MenuImage1.png');
     }
 
     create() {
         const gameWidth = this.cameras.main.width;
         const gameHeight = this.cameras.main.height;
 
-        // Load saved settings or use defaults
-        this.settings = this.loadSettings();
-
         // Create background
-        this.add.rectangle(0, 0, gameWidth, gameHeight, 0x000000).setOrigin(0);
+        const background = this.add.image(gameWidth/2, gameHeight/2, 'settingsBackground');
+        
+        // Scale the background to cover the screen
+        const scaleX = gameWidth / background.width;
+        const scaleY = gameHeight / background.height;
+        const scale = Math.max(scaleX, scaleY);
+        background.setScale(scale);
 
-        // Create settings container with padding
-        this.settingsContainer = this.add.container(gameWidth/2, 40);
-
-        // Add title
-        const titleText = this.add.text(0, 0, 'SETTINGS', {
-            fontSize: '36px',
+        // Title
+        this.add.text(gameWidth/2, gameHeight * 0.12, 'SETTINGS', {
+            fontSize: '48px',
             fill: '#fff',
-            fontFamily: 'Arial Black'
+            stroke: '#000',
+            strokeThickness: 4,
+            fontFamily: '"Jersey 10", sans-serif'
         }).setOrigin(0.5);
-        this.settingsContainer.add(titleText);
 
-        // Settings groups
-        const groups = [
-            {
-                title: 'Sound',
-                settings: [
-                    { key: 'musicVolume', text: 'Music', type: 'slider', min: 0, max: 100, value: this.settings.musicVolume },
-                    { key: 'sfxVolume', text: 'SFX', type: 'slider', min: 0, max: 100, value: this.settings.sfxVolume }
-                ]
-            },
-            {
-                title: 'Gameplay',
-                settings: [
-                    { key: 'difficulty', text: 'Difficulty', type: 'select', options: ['Easy', 'Normal', 'Hard'], value: this.settings.difficulty },
-                    { key: 'pipeSpeed', text: 'Speed', type: 'slider', min: 50, max: 200, value: this.settings.pipeSpeed },
-                    { key: 'gapSize', text: 'Gap Size', type: 'slider', min: 100, max: 200, value: this.settings.gapSize }
-                ]
-            },
-            {
-                title: 'Debug',
-                settings: [
-                    { key: 'showTrail', text: 'Show Trail', type: 'toggle', value: this.settings.showTrail },
-                    { key: 'screenShake', text: 'Screen Shake', type: 'toggle', value: this.settings.screenShake }
-                ]
-            }
-        ];
-
-        let yOffset = 60;
-        groups.forEach(group => {
-            // Add group title with padding
-            const groupTitle = this.add.text(0, yOffset, group.title, {
-                fontSize: '24px',
-                fill: '#fff',
-                fontFamily: 'Arial Black'
-            }).setOrigin(0.5);
-            this.settingsContainer.add(groupTitle);
-            yOffset += 40;
-
-            // Add settings for this group
-            group.settings.forEach(setting => {
-                this.createSettingControl(setting, 0, yOffset);
-                yOffset += 50;
-            });
-
-            yOffset += 20; // Increased space between groups
-        });
-
-        // Add back button with proper padding
-        const backButton = this.add.text(gameWidth/2, gameHeight - 60, 'Back', {
+        // Back button
+        const backButton = this.add.text(50, 50, '< BACK', {
             fontSize: '28px',
             fill: '#fff',
             stroke: '#000',
-            strokeThickness: 2,
-            fontFamily: 'Arial Black'
+            strokeThickness: 3,
+            fontFamily: '"Jersey 10", sans-serif'
         })
-        .setOrigin(0.5)
+        .setOrigin(0, 0.5)
         .setInteractive({ useHandCursor: true })
         .on('pointerover', () => backButton.setScale(1.1))
         .on('pointerout', () => backButton.setScale(1))
-        .on('pointerdown', () => {
-            this.saveSettings();
-            // Check if GameScene is paused, if so return there
-            if (this.scene.isPaused('GameScene')) {
-                this.scene.resume('GameScene');
-                this.scene.stop();
-            } else {
-                this.scene.start('HomeScene');
-            }
-        });
-    }
+        .on('pointerdown', () => this.scene.start('HomeScene'));
 
-    createSettingControl(setting, x, y) {
-        const labelStyle = {
-            fontSize: '18px',
-            fill: '#fff',
-            fontFamily: 'Arial'
-        };
+        // Move settings container more to the right to prevent label clipping
+        const settingsContainer = this.add.container(gameWidth * 0.7, gameHeight * 0.32);
 
-        // Add label
-        const label = this.add.text(-120, y, setting.text, labelStyle).setOrigin(0, 0.5);
-        this.settingsContainer.add(label);
+        // Settings content - removed difficulty as it's handled separately
+        const settingsContent = [
+            { label: 'SOUND:', options: ['ON', 'OFF'], current: 0 },
+            { label: 'MUSIC:', options: ['ON', 'OFF'], current: 0 }
+        ];
 
-        switch (setting.type) {
-            case 'slider':
-                this.createSlider(setting, x, y);
-                break;
-            case 'toggle':
-                this.createToggle(setting, x, y);
-                break;
-            case 'select':
-                this.createSelect(setting, x, y);
-                break;
-        }
-    }
-
-    createSlider(setting, x, y) {
-        const width = 160;
-        const height = 8;
-
-        // Create slider background
-        const background = this.add.rectangle(x + 30, y, width, height, 0x666666).setOrigin(0, 0.5);
+        // Adjusted vertical spacing
+        const rowSpacing = 95; // Increased from 80 to 95
         
-        // Create slider handle
-        const handle = this.add.rectangle(
-            x + 30 + (setting.value - setting.min) / (setting.max - setting.min) * width,
-            y,
-            16,
-            16,
-            0x00ff00
-        ).setOrigin(0.5);
-        
-        handle.setInteractive({ draggable: true });
-        
-        // Add value text
-        const valueText = this.add.text(x + width + 45, y, setting.value.toString(), {
-            fontSize: '18px',
-            fill: '#fff'
-        }).setOrigin(0, 0.5);
-
-        this.settingsContainer.add([background, handle, valueText]);
-
-        handle.on('drag', (pointer, dragX) => {
-            const minX = x + 30;
-            const maxX = minX + width;
-            handle.x = Phaser.Math.Clamp(dragX, minX, maxX);
+        // Calculate display positions
+        settingsContent.forEach((setting, index) => {
+            const yOffset = index * rowSpacing;
             
-            const value = Math.round(
-                setting.min + (handle.x - minX) / width * (setting.max - setting.min)
-            );
-            this.settings[setting.key] = value;
-            valueText.setText(value.toString());
+            // Adjust label position to be more to the left and consistent
+            const label = this.add.text(-150, yOffset, setting.label, {
+                fontSize: '32px',
+                fill: '#fff',
+                stroke: '#000',
+                strokeThickness: 2,
+                fontFamily: '"Jersey 10", sans-serif'
+            }).setOrigin(1, 0.5);
+            
+            settingsContainer.add(label);
+            
+            // Options positioned directly after the label
+            const optionsContainer = this.add.container(10, yOffset);
+            
+            // Fixed spacing between options
+            let xOffset = 0;
+            
+            setting.options.forEach((option, optIndex) => {
+                const optStyle = {
+                    fontSize: '28px',
+                    fill: optIndex === setting.current ? '#3CEFFF' : '#aaa',
+                    fontFamily: '"Jersey 10", sans-serif',
+                    stroke: optIndex === setting.current ? '#000' : null,
+                    strokeThickness: optIndex === setting.current ? 1 : 0
+                };
+                
+                const optText = this.add.text(xOffset, 0, option, optStyle)
+                    .setOrigin(0, 0.5)
+                    .setInteractive({ useHandCursor: true })
+                    .on('pointerover', () => {
+                        if (optIndex !== setting.current) {
+                            optText.setFill('#fff');
+                        }
+                    })
+                    .on('pointerout', () => {
+                        if (optIndex !== setting.current) {
+                            optText.setFill('#aaa');
+                        }
+                    })
+                    .on('pointerdown', () => {
+                        // Reset all options to gray
+                        optionsContainer.list.forEach(opt => {
+                            opt.setFill('#aaa');
+                            opt.setStroke(null);
+                            opt.setStrokeThickness(0);
+                        });
+                        
+                        // Set selected option to blue
+                        optText.setFill('#3CEFFF');
+                        optText.setStroke('#000');
+                        optText.setStrokeThickness(1);
+                        
+                        // Update current selection
+                        setting.current = optIndex;
+                    });
+                
+                optionsContainer.add(optText);
+                // Fixed spacing of 25px between options
+                xOffset += optText.width + 25;
+            });
+            
+            settingsContainer.add(optionsContainer);
         });
-    }
 
-    createToggle(setting, x, y) {
-        const width = 50;
-        const height = 26;
-        
-        // Create toggle background
-        const background = this.add.rectangle(x + 30, y, width, height, 0x666666)
-            .setOrigin(0, 0.5)
-            .setInteractive({ useHandCursor: true });
-        
-        // Create toggle handle
-        const handle = this.add.rectangle(
-            x + 30 + (setting.value ? width - height/2 : height/2),
-            y,
-            height - 4,
-            height - 4,
-            setting.value ? 0x00ff00 : 0xffffff
-        ).setOrigin(0.5);
+        // Create difficulty dropdown with consistent positioning
+        this.createDifficultyDropdown(settingsContainer, rowSpacing * 2);
 
-        this.settingsContainer.add([background, handle]);
-
-        background.on('pointerdown', () => {
-            this.settings[setting.key] = !this.settings[setting.key];
-            handle.x = x + 30 + (this.settings[setting.key] ? width - height/2 : height/2);
-            handle.setFillStyle(this.settings[setting.key] ? 0x00ff00 : 0xffffff);
-        });
-    }
-
-    createSelect(setting, x, y) {
-        const optionStyle = {
-            fontSize: '18px',
-            fill: '#fff',
-            fontFamily: 'Arial'
-        };
-
-        let currentIndex = setting.options.indexOf(setting.value);
-        const optionText = this.add.text(x + 30, y, setting.value, optionStyle).setOrigin(0, 0.5);
-        
-        // Add arrows
-        const leftArrow = this.add.text(x + 10, y, '<', optionStyle)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-        
-        const rightArrow = this.add.text(x + 120, y, '>', optionStyle)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-
-        this.settingsContainer.add([optionText, leftArrow, rightArrow]);
-
-        leftArrow.on('pointerdown', () => {
-            currentIndex = (currentIndex - 1 + setting.options.length) % setting.options.length;
-            this.settings[setting.key] = setting.options[currentIndex];
-            optionText.setText(setting.options[currentIndex]);
-        });
-
-        rightArrow.on('pointerdown', () => {
-            currentIndex = (currentIndex + 1) % setting.options.length;
-            this.settings[setting.key] = setting.options[currentIndex];
-            optionText.setText(setting.options[currentIndex]);
-        });
-    }
-
-    loadSettings() {
-        const defaultSettings = {
-            musicVolume: 70,
-            sfxVolume: 80,
-            difficulty: 'Normal',
-            pipeSpeed: 100,
-            gapSize: 150,
-            showTrail: true,
-            screenShake: true
-        };
-
-        const savedSettings = localStorage.getItem('flappyBirdSettings');
-        return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
-    }
-
-    saveSettings() {
-        localStorage.setItem('flappyBirdSettings', JSON.stringify(this.settings));
-        
-        // Safely emit settings updated event
-        // This prevents errors when GameScene isn't running
-        if (this.game && this.game.events) {
-            const gameScene = this.scene.get('GameScene');
-            if (gameScene && gameScene.scene.isActive()) {
-                this.game.events.emit('settingsUpdated', this.settings);
-            }
+        // Add visual dividers between options with appropriate width
+        for (let i = 0; i < 2; i++) {
+            const divider = this.add.graphics();
+            divider.lineStyle(2, 0x3CEFFF, 0.3);
+            divider.beginPath();
+            divider.moveTo(-150, i * rowSpacing + rowSpacing/2); // Adjusted width
+            divider.lineTo(200, i * rowSpacing + rowSpacing/2);  // Adjusted width
+            divider.closePath();
+            divider.strokePath();
+            
+            settingsContainer.add(divider);
         }
+
+        // Add version text - moved slightly higher
+        this.add.text(gameWidth/2, gameHeight - 30, 'v1.0.0', {
+            fontSize: '18px',
+            fill: '#666',
+            fontFamily: '"Jersey 10", sans-serif'
+        }).setOrigin(0.5);
+    }
+
+    createDifficultyDropdown(container, yPosition) {
+        // Match the label position with other labels
+        const diffLabel = this.add.text(-150, yPosition, 'DIFFICULTY:', {
+            fontSize: '32px',
+            fill: '#fff',
+            stroke: '#000',
+            strokeThickness: 2,
+            fontFamily: '"Jersey 10", sans-serif'
+        }).setOrigin(1, 0.5);
+        
+        container.add(diffLabel);
+
+        // Align with other options
+        const dropdownContainer = this.add.container(10, yPosition);
+        container.add(dropdownContainer);
+
+        // Create dropdown header
+        const selectedOption = this.difficultyOptions[this.currentDifficulty];
+        const dropdownHeader = this.add.container(0, 0);
+        
+        // Adjusted width to better match spacing
+        const dropdownWidth = 100;
+        
+        const headerBg = this.add.graphics();
+        headerBg.fillStyle(0x000000, 0.3);
+        headerBg.fillRect(-10, -18, dropdownWidth, 36);
+        headerBg.lineStyle(2, 0x3CEFFF, 0.7);
+        headerBg.strokeRect(-10, -18, dropdownWidth, 36);
+        
+        const headerText = this.add.text(0, 0, selectedOption, {
+            fontSize: '28px',
+            fill: '#3CEFFF',
+            fontFamily: '"Jersey 10", sans-serif',
+            stroke: '#000',
+            strokeThickness: 1
+        }).setOrigin(0, 0.5);
+        
+        const arrow = this.add.text(dropdownWidth - 20, 0, '▼', {
+            fontSize: '16px',
+            fill: '#3CEFFF'
+        }).setOrigin(0.5);
+        
+        dropdownHeader.add([headerBg, headerText, arrow]);
+        dropdownHeader.setInteractive(new Phaser.Geom.Rectangle(-10, -18, dropdownWidth, 36), Phaser.Geom.Rectangle.Contains)
+            .on('pointerover', () => dropdownHeader.setScale(1.05))
+            .on('pointerout', () => dropdownHeader.setScale(1))
+            .on('pointerdown', () => this.toggleDropdown());
+            
+        dropdownContainer.add(dropdownHeader);
+        
+        // Dropdown options container
+        this.dropdownOptions = this.add.container(0, 22);
+        this.dropdownOptions.visible = false;
+        dropdownContainer.add(this.dropdownOptions);
+        
+        // Update dropdown options sizing to match
+        this.difficultyOptions.forEach((option, index) => {
+            const optionContainer = this.add.container(0, index * 36);
+            
+            const optionBg = this.add.graphics();
+            optionBg.fillStyle(0x000000, 0.5);
+            optionBg.fillRect(-10, -16, dropdownWidth, 32);
+            if (index === this.currentDifficulty) {
+                optionBg.lineStyle(2, 0x3CEFFF, 0.7);
+                optionBg.strokeRect(-10, -16, dropdownWidth, 32);
+            }
+            
+            const optionText = this.add.text(0, 0, option, {
+                fontSize: '28px',
+                fill: index === this.currentDifficulty ? '#3CEFFF' : '#aaa',
+                fontFamily: '"Jersey 10", sans-serif'
+            }).setOrigin(0, 0.5);
+            
+            optionContainer.add([optionBg, optionText]);
+            optionContainer.setInteractive(new Phaser.Geom.Rectangle(-10, -16, dropdownWidth, 32), Phaser.Geom.Rectangle.Contains)
+                .on('pointerover', () => {
+                    if (index !== this.currentDifficulty) {
+                        optionText.setFill('#fff');
+                    }
+                })
+                .on('pointerout', () => {
+                    if (index !== this.currentDifficulty) {
+                        optionText.setFill('#aaa');
+                    }
+                })
+                .on('pointerdown', () => {
+                    this.selectDifficulty(index, headerText);
+                });
+                
+            this.dropdownOptions.add(optionContainer);
+        });
+    }
+    
+    toggleDropdown() {
+        // Simplified toggle approach
+        this.isDropdownOpen = !this.isDropdownOpen;
+        this.dropdownOptions.visible = this.isDropdownOpen;
+    }
+    
+    selectDifficulty(index, headerText) {
+        this.currentDifficulty = index;
+        headerText.setText(this.difficultyOptions[index]);
+        
+        const dropdownWidth = 100;
+        
+        // Update option styling
+        this.dropdownOptions.list.forEach((optContainer, i) => {
+            const optText = optContainer.list[1];
+            const optBg = optContainer.list[0];
+            
+            optText.setFill(i === index ? '#3CEFFF' : '#aaa');
+            
+            // Clear existing stroke
+            optBg.clear();
+            optBg.fillStyle(0x000000, 0.5);
+            optBg.fillRect(-10, -16, dropdownWidth, 32);
+            
+            // Add stroke only to selected
+            if (i === index) {
+                optBg.lineStyle(2, 0x3CEFFF, 0.7);
+                optBg.strokeRect(-10, -16, dropdownWidth, 32);
+            }
+        });
+        
+        // Close dropdown after selection
+        this.toggleDropdown();
     }
 } 
